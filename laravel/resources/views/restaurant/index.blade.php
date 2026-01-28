@@ -35,17 +35,44 @@
         .map-container {
             margin-bottom: 20px;
         }
-        .legend {
+        /* .legend {
             background: white;
             padding: 10px;
             border-radius: 5px;
             box-shadow: 0 0 10px rgba(0,0,0,0.1);
-        }
+        } */
         .restaurant-marker {
             cursor: pointer;
         }
         .restaurant-marker div {
             user-select: none;
+        }
+        .sortable {
+            cursor: pointer;
+            position: relative;
+        }
+        .sortable:hover {
+            color: #0066cc;
+        }
+        .sortable::after {
+            content: ' ↕';
+            font-size: 0.8em;
+            opacity: 0.5;
+        }
+        .sortable.sort-asc::after {
+            content: ' ↑';
+            opacity: 1;
+        }
+        .sortable.sort-desc::after {
+            content: ' ↓';
+            opacity: 1;
+        }
+        /* Restaurant table row styling */
+        .restaurant-table tr {
+            transition: background-color 0.2s ease;
+        }
+        .restaurant-table tr:hover {
+            filter: brightness(1.1);
         }
     </style>
 </head>
@@ -60,7 +87,7 @@
         <div class="stats-box">
             <h3>Simulation Statistics</h3>
             <div class="row">
-                <div class="col-md-6">
+                <div class="col-md-12">
                     <div class="row">
                         <div class="col-md-6">
                             <p><strong>Total Drivers Assigned:</strong> <span id="totalDrivers">{{ $report['stats']['total_drivers_assigned'] ?? 0 }}</span></p>
@@ -80,20 +107,20 @@
         <div class="map-container">
             <h3>Geographic Visualization</h3>
             <div id="map"></div>
-            <div class="legend mt-2">
+            {{-- <div class="legend mt-2">
                 <h5>Legend</h5>
-                <p><span style="background-color: #FF5733; color: white; padding: 2px 6px; border: 1px solid #000; border-radius: 2px; font-size: 12px; font-weight: bold;">1</span> Restaurants (color indicates restaurant)</p>
+                <p><span style="background-color: #da9100; color: white; padding: 2px 6px; border: 1px solid #000; border-radius: 2px; font-size: 12px; font-weight: bold;">n</span> Restaurant</p>
                 <p>
-  <span style="background-color: blue; color: white; padding: 2px 6px; border: 1px solid #000; border-radius: 50%; font-size: 12px; font-weight: bold;">1</span>
-  Drivers (color indicates assigned restaurant)
+  <span style="background-color: #da9100; color: white; padding: 2px 6px; border: 1px solid #000; border-radius: 50%; font-size: 12px; font-weight: bold;">n</span>
+  Driver (color indicates assigned restaurant)
 </p>
-            </div>
+            </div> --}}
         </div>
 
         <div class="mt-4">
             <h3>Restaurant Orders</h3>
             <div class="table-responsive">
-                <table class="table table-striped table-bordered">
+                <table class="table table-striped table-bordered restaurant-table">
                     <thead class="">
                         <tr>
                             <th>Restaurant ID</th>
@@ -119,7 +146,24 @@
                                         }
                                     }
                                 @endphp
-                                <tr>
+                                @php
+                                    // Define restaurant color palette
+                                    $restaurantColors = [
+                                        '#FF0000', // Red
+                                        '#0000FF', // Blue
+                                        '#008000', // Green
+                                        '#800080', // Purple
+                                        '#FF8C00', // Dark Yellow
+                                        '#FF00FF', // Magenta
+                                        '#FFA500', // Orange
+                                        '#00FFFF', // Cyan
+                                        '#000000', // Black
+                                    ];
+                                    $colorIndex = $index % count($restaurantColors);
+                                    $color = $restaurantColors[$colorIndex];
+                                    $textColor = ($color === '#000000' || $color === '#0000FF' || $color === '#800080') ? '#FFFFFF' : '#000000';
+                                @endphp
+                                <tr style="background-color: {{ $color }}; color: {{ $textColor }};">
                                     <td>{{ $index + 1 }}</td>
                                     <td>{{ $restaurantBefore['title'] ?? 'Unknown' }}</td>
                                     <td>{{ $restaurantBefore['orders_count'] ?? 0 }}</td>
@@ -143,13 +187,13 @@
                 <table class="table table-striped table-bordered">
                     <thead style="">
                         <tr>
-                            <th>Driver ID</th>
-                            <th>Orders</th>
-                            <th>Restaurant ID</th>
-                            <th>Restaurant Name (Assigned)</th>
-                            <th>Distance</th>
-                            <th>Closest Restaurant</th>
-                            <th>Closest Dist</th>
+                            <th class="sortable" data-sort="drivers">Driver ID</th>
+                            <th class="sortable" data-sort="orders">Orders</th>
+                            <th class="sortable" data-sort="restaurant_id">Restaurant ID</th>
+                            <th class="sortable" data-sort="restaurant_name">Restaurant Name (Assigned)</th>
+                            <th class="sortable" data-sort="distance">Distance</th>
+                            <th class="sortable" data-sort="closest_restaurant">Closest Restaurant</th>
+                            <th class="sortable" data-sort="closest_dist">Closest Dist</th>
                         </tr>
                     </thead>
                     <tbody id="driversTable">
@@ -199,8 +243,16 @@
 
         // Fixed color palette for restaurants (consistent index-based)
         const restaurantColors = [
-            '#FF5733', '#33FF57', '#3357FF', '#F3FF33', '#FF33F3',
-            '#33FFF3', '#8A2BE2', '#FF6347', '#7CFC00', '#FFD700'
+            '#FF5733',
+            '#480607',//Bulgarian Rose
+            '#3357FF',
+            '#2f4f4f',//Dark Slate Grey
+            '#FF33F3',
+            '#008080',//Teal
+            '#8A2BE2',
+            '#e30b5d',//Raspberry
+            '#e2725b',//Terra Cotta
+            '#da9100'//Harvest Gold
         ];
 
         // Initialize map
@@ -327,6 +379,50 @@
             }
         }
 
+        // Table sorting functionality
+        function setupTableSorting() {
+            $('.sortable').click(function() {
+                const column = $(this).data('sort');
+                const table = $(this).closest('table');
+                const tbody = table.find('tbody');
+                const rows = tbody.find('tr').get();
+
+                // Determine sort direction
+                const isAsc = $(this).hasClass('sort-asc');
+
+                // Remove sort classes from all headers
+                table.find('.sortable').removeClass('sort-asc sort-desc');
+
+                // Add appropriate class to clicked header
+                $(this).addClass(isAsc ? 'sort-desc' : 'sort-asc');
+
+                // Sort rows
+                rows.sort(function(a, b) {
+                    const aValue = $(a).find('td:nth-child(' + ($(this).index() + 1) + ')').text();
+                    const bValue = $(b).find('td:nth-child(' + ($(this).index() + 1) + ')').text();
+
+                    // Extract numeric value for distance columns
+                    let aNum = parseFloat(aValue.replace(/[^0-9.]/g, ''));
+                    let bNum = parseFloat(bValue.replace(/[^0-9.]/g, ''));
+
+                    // If numeric comparison works, use it
+                    if (!isNaN(aNum) && !isNaN(bNum)) {
+                        return isAsc ? aNum - bNum : bNum - aNum;
+                    }
+
+                    // Otherwise use text comparison
+                    return isAsc
+                        ? aValue.localeCompare(bValue)
+                        : bValue.localeCompare(aValue);
+                }.bind(this));
+
+                // Re-add sorted rows
+                $.each(rows, function(index, row) {
+                    tbody.append(row);
+                });
+            });
+        }
+
         $(document).ready(function() {
             // Initialize map when DOM is ready and map container is visible
             if ($('#map').length > 0) {
@@ -337,6 +433,9 @@
             } else {
                 console.error('Map container not found');
             }
+
+            // Setup table sorting
+            setupTableSorting();
 
             $('#simulateBtn').click(function() {
                 $(this).prop('disabled', true).text('Simulating...');
