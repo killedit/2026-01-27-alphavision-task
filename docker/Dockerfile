@@ -15,23 +15,24 @@ RUN apt-get update && apt-get install -y \
     libzip-dev \
     zip \
     unzip \
-    && docker-php-ext-install pdo_mysql zip \
+    libxml2-dev \
+    && docker-php-ext-install pdo_mysql zip xml \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Composer
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
 # Set working directory to the Laravel project
-WORKDIR /laravel
+WORKDIR /var/www
 
 # Copy application files (including composer.json and artisan)
-COPY --chown=www-data:www-data ../laravel .
+COPY --chown=www-data:www-data ./laravel .
 
 # Install PHP dependencies
-RUN composer install --optimize-autoloader --no-dev
+RUN composer install --no-interaction --optimize-autoloader --no-dev
 
 # Set permissions for Laravel
-RUN chown -R www-data:www-data /laravel/storage /laravel/bootstrap/cache
+RUN chown -R www-data:www-data storage bootstrap/cache
 
 # Create ll alias
 RUN echo "alias ll='ls -l'" >> /root/.bashrc
