@@ -78,14 +78,20 @@
 </head>
 <body>
     <div class="container">
-        <h1 class="text-center mb-4">Restaurant Logistics System</h1>
+        {{-- <h1 class="text-center mb-4">Restaurant Logistics System</h1>
 
         <div class="btn-simulate text-center">
             <button id="simulateBtn" class="btn btn-primary btn-lg">Run New Simulation</button>
-        </div>
+        </div> --}}
 
         <div class="stats-box">
-            <h3>Simulation Statistics</h3>
+            {{-- <h3>Simulation Statistics</h3> --}}
+            <div class="stats-header d-flex align-center space-between col-md-12">
+                <h3 class="stats-title col-md-6">Simulation Statistics:</h3>
+                <div class="btn-simulate col-md-6">
+                    <button id="simulateBtn" class="btn btn-primary btn-lg">Run New Simulation</button>
+                </div>
+            </div>
             <div class="row">
                 <div class="col-md-12">
                     <div class="row">
@@ -105,7 +111,7 @@
         </div>
 
         <div class="map-container">
-            <h3>Geographic Visualization</h3>
+            <h3>Map</h3>
             <div id="map"></div>
             {{-- <div class="legend mt-2">
                 <h5>Legend</h5>
@@ -356,8 +362,10 @@
                             color: '#000',
                             weight: 1,
                             opacity: 1,
-                            fillOpacity: 0.8
+                            fillOpacity: 0.8,
+                            zIndexOffset: 100
                         }).addTo(map);
+                        driverMarkers.push(marker);
 
                         // Add text label with driver number
                         const label = L.divIcon({
@@ -367,13 +375,40 @@
                         });
 
                         const textMarker = L.marker([parseFloat(driver.position.lat), parseFloat(driver.position.lng)], {
-                            icon: label
+                            icon: label,
+                            zIndexOffset: 150
                         }).addTo(map);
                         driverMarkers.push(textMarker);
+                    }
+                });
+            }
 
-                        marker.bindPopup(`<b>Driver ${driver.id}</b><br>
-                                        Orders: ${driver.orders_assigned || 0}<br>
-                                        Assigned to: ${assignedRestaurant.title}`);
+            // Add unassigned drivers to the map (grey color)
+            if (data.drivers && data.drivers.length > 0) {
+                data.drivers.forEach(driver => {
+                    if (!driver.assigned_restaurant_id || driver.assigned_restaurant_id === 0) {
+                        const marker = L.circleMarker([parseFloat(driver.position.lat), parseFloat(driver.position.lng)], {
+                            radius: 7,
+                            fillColor: '#808080',
+                            color: '#666666',
+                            weight: 1,
+                            opacity: 1,
+                            fillOpacity: 0.8,
+                            zIndexOffset: 100
+                        }).addTo(map);
+                        driverMarkers.push(marker);
+
+                        const label = L.divIcon({
+                            html: `<div style="font-size: 10px; font-weight: bold; color: white; text-align: center; line-height: 14px;">${driver.id}</div>`,
+                            iconSize: [14, 14],
+                            className: 'driver-label'
+                        });
+
+                        const textMarker = L.marker([parseFloat(driver.position.lat), parseFloat(driver.position.lng)], {
+                            icon: label,
+                            zIndexOffset: 150
+                        }).addTo(map);
+                        driverMarkers.push(textMarker);
                     }
                 });
             }
@@ -480,36 +515,24 @@
                         });
                         $('#restaurantsAfter').html(afterHtml);
 
-                        // Update drivers table - ALL 100 drivers
+                        // Update drivers table - ALL drivers including unassigned
                         let driversHtml = '';
                         if (response.drivers && response.drivers.length > 0) {
                             response.drivers.forEach(function(driver) {
-                                // Find orders from restaurants for this driver
-                                let ordersFromRestaurants = [];
-                                if (response.restaurants_before && response.restaurants_before.length > 0) {
-                                    response.restaurants_before.forEach(function(restaurant) {
-                                        if (restaurant.id === driver.assigned_restaurant_id) {
-                                            // For now, we'll just show the assigned restaurant ID
-                                            // In a full implementation, this would show specific order IDs
-                                            ordersFromRestaurants.push(restaurant.id);
-                                        }
-                                    });
-                                }
-
                                 driversHtml += `
                                     <tr class="driver-row">
                                         <td><strong>${driver.id}</strong></td>
                                         <td>${driver.orders_assigned || 0}</td>
-                                        <td>${driver.assigned_restaurant_title || 'N/A'}</td>
-                                        <td>${driver.distance_to_assigned ? driver.distance_to_assigned.toFixed(2) : '0.00'} km</td>
+                                        <td>${driver.assigned_restaurant_id || 'Unassigned'}</td>
+                                        <td>${driver.assigned_restaurant_title || 'Unassigned'}</td>
+                                        <td>${driver.distance_to_assigned ? driver.distance_to_assigned.toFixed(2) : '—'} ${driver.distance_to_assigned ? 'km' : ''}</td>
                                         <td>${driver.closest_restaurant_title || 'N/A'}</td>
                                         <td>${driver.distance_to_closest ? driver.distance_to_closest.toFixed(2) : '0.00'} km</td>
-                                        <td>${ordersFromRestaurants.join(', ') || 'N/A'}</td>
                                     </tr>
                                 `;
                             });
                         } else {
-                            driversHtml = '<tr><td colspan="7" class="text-center">No drivers assigned</td></tr>';
+                            driversHtml = '<tr><td colspan="7" class="text-center">No drivers available</td></tr>';
                         }
                         $('#driversTable').html(driversHtml);
 

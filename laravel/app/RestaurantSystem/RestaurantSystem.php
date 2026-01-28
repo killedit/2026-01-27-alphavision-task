@@ -2,6 +2,10 @@
 
 namespace App\RestaurantSystem;
 
+use App\Models\Restaurant as EloquentRestaurant;
+use App\Models\Driver as EloquentDriver;
+use Illuminate\Support\Facades\DB;
+
 require_once __DIR__ . '/geo.php';
 
 class RestaurantSystem
@@ -11,9 +15,8 @@ class RestaurantSystem
 
     public function __construct()
     {
-        // Initialize with seed data
-        $this->seedRestaurants();
-        $this->seedDrivers();
+        // Initialize from database
+        $this->loadFromDatabase();
     }
 
     private function seedRestaurants()
@@ -41,6 +44,54 @@ class RestaurantSystem
         // Seed 100 drivers with basic data
         for ($i = 1; $i <= 100; $i++) {
             $this->drivers[] = new Driver($i, "Driver {$i}", 0, 0);
+        }
+    }
+
+    private function loadFromDatabase()
+    {
+        try {
+            // Load restaurants from database
+            $dbRestaurants = EloquentRestaurant::all();
+
+            if ($dbRestaurants->isEmpty()) {
+                // Fallback to seed data if database is empty
+                $this->seedRestaurants();
+            } else {
+                foreach ($dbRestaurants as $dbRestaurant) {
+                    $this->restaurants[] = new Restaurant(
+                        $dbRestaurant->id,
+                        $dbRestaurant->title,
+                        $dbRestaurant->lat,
+                        $dbRestaurant->lng,
+                        $dbRestaurant->orders_count
+                    );
+                }
+            }
+
+            // Load drivers from database
+            $dbDrivers = EloquentDriver::all();
+
+            if ($dbDrivers->isEmpty()) {
+                // Fallback to seed data if database is empty
+                $this->seedDrivers();
+            } else {
+                foreach ($dbDrivers as $dbDriver) {
+                    $this->drivers[] = new Driver(
+                        $dbDriver->id,
+                        $dbDriver->name,
+                        $dbDriver->lat,
+                        $dbDriver->lng,
+                        $dbDriver->capacity,
+                        $dbDriver->next_restaurant_id
+                    );
+                }
+            }
+
+        } catch (\Exception $e) {
+            // If database connection fails, fall back to seed data
+            error_log('Database connection failed: ' . $e->getMessage());
+            $this->seedRestaurants();
+            $this->seedDrivers();
         }
     }
 
@@ -119,20 +170,29 @@ class RestaurantSystem
             // Assign driver to closest restaurant if found (with strict safety checks)
             if ($closestRestaurant !== null) {
                 $availableOrders = $restaurantOrderCounts[$closestRestaurant->id] - $targetRemainingPerRestaurant;
-                $ordersAssigned = min($driver->capacity, max(0, $availableOrders));
-
-                if ($ordersAssigned > 0) {
+                $maxOrders = min(4, max(0, $availableOrders));
+                if ($maxOrders > 0) {
+                    $ordersAssigned = rand(1, $maxOrders);
                     $driver->next_restaurant_id = $closestRestaurant->id;
                     $driver->orders_assigned = $ordersAssigned;
                     $restaurantOrderCounts[$closestRestaurant->id] -= $ordersAssigned;
 
-                    // Stop if we've assigned enough orders
+                    // Continue assigning to get more drivers involved
+                    // Only stop if we've assigned all possible orders
                     $ordersToAssign -= $ordersAssigned;
-                    if ($ordersToAssign <= 0) {
-                        break;
-                    }
                 }
             }
+        }
+
+        // Second pass: Try to assign remaining drivers if we have extra capacity
+        // This helps utilize more drivers even if we've met our target
+        $assignedDriverCount = count(array_filter($this->drivers, function($driver) {
+            return $driver->next_restaurant_id > 0;
+        }));
+
+        if ($assignedDriverCount < count($this->drivers) * 0.7) {
+            // If less than 70% of drivers are assigned, try to assign more
+            $this->assignMoreDrivers($distances, $restaurantOrderCounts, $targetRemainingPerRestaurant);
         }
 
         // Update actual restaurant order counts safely
@@ -309,6 +369,84 @@ class RestaurantSystem
         }
     }
 
+    protected function assignMoreDrivers($distances, &$restaurantOrderCounts, $targetRemainingPerRestaurant)
+    {
+        // Find unassigned drivers
+        $unassignedDrivers = [];
+        foreach ($this->drivers as $driver) {
+            if ($driver->next_restaurant_id == 0) {
+                $unassignedDrivers[] = $driver;
+            }
+        }
+
+        if (empty($unassignedDrivers)) {
+            return;
+        }
+
+        // Find restaurants that can spare some orders (above target)
+        $restaurantsWithExcess = [];
+        foreach ($this->restaurants as $restaurant) {
+            if ($restaurantOrderCounts[$restaurant->id] > $targetRemainingPerRestaurant) {
+                $excess = $restaurantOrderCounts[$restaurant->id] - $targetRemainingPerRestaurant;
+                if ($excess >= 1) { // At least 1 order to spare
+                    $restaurantsWithExcess[] = [
+                        'restaurant' => $restaurant,
+                        'excess' => $excess
+                    ];
+                }
+            }
+        }
+
+        if (empty($restaurantsWithExcess)) {
+            return;
+        }
+
+        // Try to assign unassigned drivers to restaurants with excess
+        foreach ($unassignedDrivers as $driver) {
+            // Find closest restaurant with excess
+            $closestRestaurant = null;
+            $closestDistance = PHP_FLOAT_MAX;
+
+            foreach ($restaurantsWithExcess as $restaurantData) {
+                $restaurant = $restaurantData['restaurant'];
+                $distance = $distances[$driver->id][$restaurant->id];
+
+                if ($distance < $closestDistance) {
+                    $closestDistance = $distance;
+                    $closestRestaurant = $restaurant;
+                }
+            }
+
+            if ($closestRestaurant !== null) {
+                // Find the excess data for this restaurant
+                $excessData = null;
+                foreach ($restaurantsWithExcess as &$data) {
+                    if ($data['restaurant']->id === $closestRestaurant->id) {
+                        $excessData = &$data;
+                        break;
+                    }
+                }
+
+                if ($excessData && $excessData['excess'] >= 1) {
+                    // Assign 1 order to this driver (minimum assignment)
+                    $ordersToAssign = min($driver->capacity, $excessData['excess']);
+
+                    $driver->next_restaurant_id = $closestRestaurant->id;
+                    $driver->orders_assigned = $ordersToAssign;
+
+                    // Update excess
+                    $excessData['excess'] -= $ordersToAssign;
+                    $restaurantOrderCounts[$closestRestaurant->id] -= $ordersToAssign;
+                }
+            }
+        }
+
+        // Update actual restaurant counts
+        foreach ($this->restaurants as $restaurant) {
+            $restaurant->orders_count = $restaurantOrderCounts[$restaurant->id];
+        }
+    }
+
     protected function finalValidation($targetRemainingPerRestaurant)
     {
         // Ensure no restaurant has negative orders
@@ -380,8 +518,9 @@ class RestaurantSystem
 
             // Assign to any available restaurant if found
             if ($anyRestaurant !== null) {
+                $maxOrders = min(4, max(1, $anyRestaurant->orders_count - $targetRemainingPerRestaurant));
+                $ordersAssigned = rand(1, $maxOrders);
                 $driver->next_restaurant_id = $anyRestaurant->id;
-                $ordersAssigned = min($driver->capacity, $anyRestaurant->orders_count - $targetRemainingPerRestaurant);
                 $driver->orders_assigned = $ordersAssigned;
                 $anyRestaurant->orders_count -= $ordersAssigned;
             }
@@ -645,6 +784,30 @@ class RestaurantSystem
                         'capacity' => $driver->capacity
                     ];
                 }
+            } else {
+                $closest = null;
+                $minDist = PHP_FLOAT_MAX;
+                foreach ($this->restaurants as $restaurant) {
+                    $dist = haversineDistance($driver->lat, $driver->lng, $restaurant->lat, $restaurant->lng);
+                    if ($dist < $minDist) {
+                        $minDist = $dist;
+                        $closest = $restaurant;
+                    }
+                }
+
+                $report['drivers'][] = [
+                    'id' => $driver->id,
+                    'name' => $driver->name,
+                    'position' => ['lat' => $driver->lat, 'lng' => $driver->lng],
+                    'assigned_restaurant_id' => 0,
+                    'assigned_restaurant_title' => 'Unassigned',
+                    'distance_to_assigned' => 0,
+                    'closest_restaurant_id' => $closest->id,
+                    'closest_restaurant_title' => $closest->title,
+                    'distance_to_closest' => $minDist,
+                    'orders_assigned' => 0,
+                    'capacity' => $driver->capacity
+                ];
             }
         }
 

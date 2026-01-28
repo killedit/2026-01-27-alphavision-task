@@ -38,7 +38,7 @@ Test Connection...
 
 ## Application
 
-It's a dockerized Laravel application that makes migrations and seeds the db at the setup step. It's creating 100 `drivers` randomply positioned on the map and random number of orders in each `place`. The logic is that in the end each `place` has same number of orders. `Drivers` that are closer to a `place` are prefered and should not travel further than 5km and they can get only randomly 1-4 orders. I did not complicate things with one `driver` being able to get orders from more than one `place`.
+A dockerized Laravel application that makes migrations and seeds the db at the setup step. It's creating 100 `drivers` randomply positioned on the map, fixed number of `restaurants` and random number of orders in each `restaurant`. The logic is that in the end each `restaurant` has same number of orders. `Drivers` that are closer to a `restaurant` are prefered, should not travel further than 5km and they can get only randomly 1-4 orders. I did not complicate things with one `driver` being able to get orders from more than one `restaurant`. Unassigned drivers are displayed in grey.
 
 http://localhost:8087/restaurant 
 
