@@ -487,33 +487,43 @@
                         $('#totalOrdersRemaining').text(response.stats.total_orders_remaining);
                         $('#utilizationRate').text(parseFloat(response.stats.utilization_rate).toFixed(1));
 
-                        // Update restaurants before
-                        let beforeHtml = '';
-                        response.restaurants_before.forEach(function(restaurant) {
-                            beforeHtml += `
-                                <div class="card restaurant-card">
-                                    <div class="card-body">
-                                        <h5 class="card-title">${restaurant.title}</h5>
-                                        <p class="card-text">Orders: ${restaurant.orders_count}</p>
-                                    </div>
-                                </div>
-                            `;
-                        });
-                        $('#restaurantsBefore').html(beforeHtml);
+                        // Update restaurant comparison table
+                        let restaurantsHtml = '';
+                        const restaurantColors = [
+                            '#FF5733', '#480607', '#3357FF', '#2f4f4f', '#FF33F3',
+                            '#008080', '#8A2BE2', '#e30b5d', '#e2725b', '#da9100'
+                        ];
 
-                        // Update restaurants after
-                        let afterHtml = '';
-                        response.restaurants_after.forEach(function(restaurant) {
-                            afterHtml += `
-                                <div class="card restaurant-card">
-                                    <div class="card-body">
-                                        <h5 class="card-title">${restaurant.title}</h5>
-                                        <p class="card-text">Orders: ${restaurant.orders_count}</p>
-                                    </div>
-                                </div>
-                            `;
-                        });
-                        $('#restaurantsAfter').html(afterHtml);
+                        if (response.restaurants_before && response.restaurants_after) {
+                            response.restaurants_before.forEach(function(restaurantBefore, index) {
+                                const restaurantAfter = response.restaurants_after[index] || { orders_count: 0 };
+
+                                // Find drivers assigned to this restaurant
+                                let assignedDriverIds = [];
+                                if (response.drivers && response.drivers.length > 0) {
+                                    response.drivers.forEach(function(driver) {
+                                        if (driver.assigned_restaurant_id === restaurantBefore.id) {
+                                            assignedDriverIds.push(driver.id);
+                                        }
+                                    });
+                                }
+
+                                const colorIndex = index % restaurantColors.length;
+                                const color = restaurantColors[colorIndex];
+                                const textColor = (color === '#000000' || color === '#0000FF' || color === '#800080') ? '#FFFFFF' : '#000000';
+
+                                restaurantsHtml += `
+                                    <tr style="background-color: ${color}; color: ${textColor};">
+                                        <td>${index + 1}</td>
+                                        <td>${restaurantBefore.title || 'Unknown'}</td>
+                                        <td>${restaurantBefore.orders_count || 0}</td>
+                                        <td>${restaurantAfter.orders_count || 0}</td>
+                                        <td>${assignedDriverIds.join(', ') || '—'}</td>
+                                    </tr>
+                                `;
+                            });
+                        }
+                        $('#restaurantsComparison').html(restaurantsHtml);
 
                         // Update drivers table - ALL drivers including unassigned
                         let driversHtml = '';

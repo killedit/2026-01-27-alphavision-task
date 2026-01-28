@@ -139,7 +139,6 @@ class RestaurantSystem
 
         // Calculate target for balanced remaining orders (ensure at least 2 orders per restaurant)
         $targetRemainingPerRestaurant = max(2, floor($totalOrders / count($this->restaurants) * 0.2));
-        $ordersToAssign = min($totalCapacity, max(0, $totalOrders - ($targetRemainingPerRestaurant * count($this->restaurants))));
 
         // Initialize safe order counts tracking
         $restaurantOrderCounts = [];
@@ -147,15 +146,25 @@ class RestaurantSystem
             $restaurantOrderCounts[$restaurant->id] = $restaurant->orders_count;
         }
 
-        // Proximity-based assignment with strict safety checks
+        // FIRST PASS: Assign each driver a minimum of 1 order (everyone gets assigned)
+        // We need to ensure ALL 100 drivers get between 1-4 orders
+        $unassignedDrivers = $this->drivers;
+
+        // Sort restaurants by available orders (highest first) to distribute more evenly
+        $restaurantsByOrders = [];
+        foreach ($this->restaurants as $restaurant) {
+            $restaurantsByOrders[] = $restaurant;
+        }
+
+        // Round-robin assignment: cycle through drivers and find best restaurant for each
         foreach ($this->drivers as $driver) {
-            // Find the closest restaurant that still has orders above target
+            // Find the closest restaurant that has orders above target
             $closestRestaurant = null;
             $closestDistance = PHP_FLOAT_MAX;
 
             foreach ($this->restaurants as $restaurant) {
-                // Skip restaurants that are at or below target remaining orders
-                if ($restaurantOrderCounts[$restaurant->id] <= $targetRemainingPerRestaurant) {
+                // Must have at least 1 order available
+                if ($restaurantOrderCounts[$restaurant->id] <= 0) {
                     continue;
                 }
 
@@ -167,37 +176,32 @@ class RestaurantSystem
                 }
             }
 
-            // Assign driver to closest restaurant if found (with strict safety checks)
-            if ($closestRestaurant !== null) {
-                $availableOrders = $restaurantOrderCounts[$closestRestaurant->id] - $targetRemainingPerRestaurant;
-                $maxOrders = min(4, max(0, $availableOrders));
-                if ($maxOrders > 0) {
-                    $ordersAssigned = rand(1, $maxOrders);
-                    $driver->next_restaurant_id = $closestRestaurant->id;
-                    $driver->orders_assigned = $ordersAssigned;
-                    $restaurantOrderCounts[$closestRestaurant->id] -= $ordersAssigned;
-
-                    // Continue assigning to get more drivers involved
-                    // Only stop if we've assigned all possible orders
-                    $ordersToAssign -= $ordersAssigned;
+            // If no restaurant with orders found, use the closest restaurant regardless
+            if ($closestRestaurant === null) {
+                $closestRestaurant = $this->restaurants[0];
+                $closestDistance = $distances[$driver->id][$closestRestaurant->id];
+                foreach ($this->restaurants as $restaurant) {
+                    $distance = $distances[$driver->id][$restaurant->id];
+                    if ($distance < $closestDistance) {
+                        $closestDistance = $distance;
+                        $closestRestaurant = $restaurant;
+                    }
                 }
             }
-        }
 
-        // Second pass: Try to assign remaining drivers if we have extra capacity
-        // This helps utilize more drivers even if we've met our target
-        $assignedDriverCount = count(array_filter($this->drivers, function($driver) {
-            return $driver->next_restaurant_id > 0;
-        }));
+            // MANDATORY ASSIGNMENT: Assign 1-4 orders (everyone must get assigned)
+            $availableOrders = max(0, $restaurantOrderCounts[$closestRestaurant->id]);
+            $maxOrders = min(4, max(1, $availableOrders)); // At least 1, at most 4
+            $ordersAssigned = rand(1, $maxOrders);
 
-        if ($assignedDriverCount < count($this->drivers) * 0.7) {
-            // If less than 70% of drivers are assigned, try to assign more
-            $this->assignMoreDrivers($distances, $restaurantOrderCounts, $targetRemainingPerRestaurant);
+            $driver->next_restaurant_id = $closestRestaurant->id;
+            $driver->orders_assigned = $ordersAssigned;
+            $restaurantOrderCounts[$closestRestaurant->id] -= $ordersAssigned;
         }
 
         // Update actual restaurant order counts safely
         foreach ($this->restaurants as $restaurant) {
-            $restaurant->orders_count = max($targetRemainingPerRestaurant, $restaurantOrderCounts[$restaurant->id]);
+            $restaurant->orders_count = max(0, $restaurantOrderCounts[$restaurant->id]);
         }
 
         // Robust balancing with multiple safety checks
@@ -213,7 +217,7 @@ class RestaurantSystem
     protected function optimizeLongDistanceAssignments($distances)
     {
         // Define what constitutes a "long distance" assignment
-        $longDistanceThreshold = 5.0; // Reduced to 5km for more aggressive optimization
+        $longDistanceThreshold = 5; // Reduced to 5km for more aggressive optimization
 
         // Find all long-distance assignments
         $longDistanceAssignments = [];
