@@ -9,6 +9,10 @@ class RestaurantSeeder extends Seeder
 {
     public function run()
     {
+        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+
+        DB::table('restaurants')->truncate();
+
         $restaurants = [
             ['ХепиБъкстон', '42.667122', '23.281657'],
             ['ХепиВиктория', '42.688600', '23.308027'],
@@ -22,17 +26,18 @@ class RestaurantSeeder extends Seeder
             ['HappyИзток', '42.673136', '23.348732']
         ];
 
-
         foreach ($restaurants as $index => $restaurant) {
             DB::table('restaurants')->insert([
                 'id' => $index + 1,
                 'title' => $restaurant[0],
                 'lat' => $restaurant[1],
                 'lng' => $restaurant[2],
-                'orders_count' => 0, // Will be set during simulation
+                'orders_count' => 0,
                 'created_at' => now(),
                 'updated_at' => now()
             ]);
         }
+
+        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
     }
 }

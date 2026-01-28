@@ -14,10 +14,10 @@ class DriverSeeder extends Seeder
      */
     public function run()
     {
-        // Clear existing drivers
+        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+
         DB::table('drivers')->truncate();
-        
-        // Seed 100 drivers
+
         for ($i = 1; $i <= 100; $i++) {
             DB::table('drivers')->insert([
                 'id' => $i,
@@ -30,5 +30,7 @@ class DriverSeeder extends Seeder
                 'updated_at' => now()
             ]);
         }
+
+        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
     }
 }
