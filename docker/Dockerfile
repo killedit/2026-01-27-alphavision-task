@@ -29,7 +29,7 @@ WORKDIR /var/www
 COPY --chown=www-data:www-data ./laravel .
 
 # Install PHP dependencies
-RUN composer install --no-interaction --optimize-autoloader --no-dev
+RUN composer install --no-interaction --optimize-autoloader
 
 # Set permissions for Laravel
 RUN chown -R www-data:www-data storage bootstrap/cache
