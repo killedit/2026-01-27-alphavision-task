@@ -1,0 +1,62 @@
+body {
+    background-color: #f8f9fa;
+}
+
+.card {
+    /* border: none; */
+    border-radius: 10px;
+    margin-bottom: 1rem;
+}
+
+.sortable {
+    cursor: pointer;
+    position: relative;
+    padding-right: 20px !important;
+}
+
+.sortable:hover {
+    background-color: #f1f1f1 !important;
+    color: #007bff;
+}
+
+.sortable::after {
+    content: '↕';
+    position: absolute;
+    right: 5px;
+    opacity: 1;
+}
+
+.sortable.asc::after {
+    content: '↑';
+    opacity: 1;
+    color: #007bff;
+}
+
+.sortable.desc::after {
+    content: '↓';
+    opacity: 1;
+    color: #007bff;
+}
+
+.res-marker {
+    user-select: none;
+}
+
+.driver-label div {
+    pointer-events: none;
+}
+
+.sticky-top {
+    top: -1px;
+    background: white;
+    z-index: 100;
+}
+
+.table-responsive {
+    border-radius: 0 0 10px 10px;
+}
+
+#map {
+    z-index: 1;
+    border: 1px solid #dee2e6;
+}

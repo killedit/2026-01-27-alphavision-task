@@ -43,3 +43,18 @@ A dockerized Laravel application that makes migrations and seeds the db at the s
 http://localhost:8087/restaurant 
 
 ![Home](laravel/resources/images/2026-01-27-alphavision-task-home.png)
+
+# Refactoring
+
+Created Service Classes.
+
+The old solution was trying to fix bad assignements after they have happened.
+
+The new solution is based on service classes that calculate best choice and assign driver. Now we needed parameters that can be tweaked.
+
+```php
+php artisan make:class Services/GeoService
+php artisan make:class Services/RestaurantSystem
+```
+
+Old classes have been renamed with `_{class}` to avoid confusion.

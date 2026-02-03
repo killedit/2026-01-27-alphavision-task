@@ -4,24 +4,45 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\RestaurantSystem\RestaurantSystem;
+use App\Services\RestaurantService;
 
 class RestaurantController extends Controller
 {
-    public function index()
+    // public function index()
+    // {
+    //     $system = new RestaurantSystem();
+    //     $report = $system->getReport();
+
+    //     return view('restaurant.index', [
+    //         'report' => $report
+    //     ]);
+    // }
+
+    // public function simulate()
+    // {
+    //     $system = new RestaurantSystem();
+    //     $report = $system->getReport();
+
+    //     return response()->json($report);
+    // }
+
+    public function index(RestaurantService $service)
     {
-        $system = new RestaurantSystem();
-        $report = $system->getReport();
-        
-        return view('restaurant.index', [
-            'report' => $report
-        ]);
+        $report = $service->generateFullReport();
+
+        return view('restaurant.index', compact('report'));
     }
-    
-    public function simulate()
+
+    public function simulate(RestaurantService $service)
     {
-        $system = new RestaurantSystem();
-        $report = $system->getReport();
-        
+        $service->randomize();
+
+        $report = $service->generateFullReport();
+
+// dd(
+//     $report,
+// );
+
         return response()->json($report);
     }
 }

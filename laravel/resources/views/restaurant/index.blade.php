@@ -1,564 +1,149 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Restaurant Logistics System</title>
+    <title>AlphaVision Task</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <style>
-        body {
-            padding: 20px;
-        }
-        .restaurant-card {
-            margin-bottom: 15px;
-        }
-        .driver-row {
-            font-size: 0.9em;
-        }
-        .stats-box {
-            background-color: #f8f9fa;
-            padding: 15px;
-            border-radius: 5px;
-            margin-bottom: 20px;
-        }
-        .btn-simulate {
-            margin-bottom: 20px;
-        }
-        #map {
-            height: 500px;
-            width: 100%;
-            margin-bottom: 20px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-        }
-        .map-container {
-            margin-bottom: 20px;
-        }
-        /* .legend {
-            background: white;
-            padding: 10px;
-            border-radius: 5px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-        } */
-        .restaurant-marker {
-            cursor: pointer;
-        }
-        .restaurant-marker div {
-            user-select: none;
-        }
-        .sortable {
-            cursor: pointer;
-            position: relative;
-        }
-        .sortable:hover {
-            color: #0066cc;
-        }
-        .sortable::after {
-            content: ' ↕';
-            font-size: 0.8em;
-            opacity: 0.5;
-        }
-        .sortable.sort-asc::after {
-            content: ' ↑';
-            opacity: 1;
-        }
-        .sortable.sort-desc::after {
-            content: ' ↓';
-            opacity: 1;
-        }
-        /* Restaurant table row styling */
-        .restaurant-table tr {
-            transition: background-color 0.2s ease;
-        }
-        .restaurant-table tr:hover {
-            filter: brightness(1.1);
-        }
-    </style>
+    <link rel="stylesheet" href="{{ asset('css/app.css') }}">
 </head>
+
 <body>
-    <div class="container">
-        {{-- <h1 class="text-center mb-4">Restaurant Logistics System</h1>
+    <div class="container-fluid py-3">
+        <div class="card mb-3 shadow-sm">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <h2 class="mb-0">Simulation Statistics:</h2>
+                <button id="simulateBtn" class="btn btn-primary btn-lg">Run New Simulation</button>
+            </div>
+        </div>
 
-        <div class="btn-simulate text-center">
-            <button id="simulateBtn" class="btn btn-primary btn-lg">Run New Simulation</button>
-        </div> --}}
+        <div class="row g-3 mb-3 text-center">
+            @foreach ([
+        'Drivers Assigned' => ['id' => 'totalDrivers', 'val' => $report['stats']['total_drivers_assigned'], 'unit' => ''],
+        'Avg Distance' => ['id' => 'avgDistance', 'val' => number_format($report['stats']['average_distance'], 2), 'unit' => 'km'],
+        'Orders Picked' => ['id' => 'totalOrdersAssigned', 'val' => $report['stats']['total_orders_assigned'], 'unit' => ''],
+        'Utilization' => ['id' => 'utilizationRate', 'val' => number_format($report['stats']['utilization_rate'], 1), 'unit' => '%'],
+    ] as $label => $stat)
+                <div class="col-md-3">
+                    <div class="card shadow-sm border-0 bg-light">
+                        <div class="card-body p-2">
+                            <small class="text-muted d-block">{{ $label }}</small>
+                            <span id="{{ $stat['id'] }}" class="h4 mb-0">{{ $stat['val'] }}</span>
+                            {{ $stat['unit'] }}
+                        </div>
+                    </div>
+                </div>
+            @endforeach
+        </div>
 
-        <div class="stats-box">
-            {{-- <h3>Simulation Statistics</h3> --}}
-            <div class="stats-header d-flex align-center space-between col-md-12">
-                <h3 class="stats-title col-md-6">Simulation Statistics:</h3>
-                <div class="btn-simulate col-md-6">
-                    <button id="simulateBtn" class="btn btn-primary btn-lg">Run New Simulation</button>
+        <div class="row g-3">
+            <div class="col-md-6">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header bg-white font-weight-bold">Logistics Map</div>
+                    <div class="card-body p-0">
+                        <div id="map" style="height: 100%; width: 100%;"></div>
+                    </div>
                 </div>
             </div>
-            <div class="row">
-                <div class="col-md-12">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <p><strong>Total Drivers Assigned:</strong> <span id="totalDrivers">{{ $report['stats']['total_drivers_assigned'] ?? 0 }}</span></p>
-                            <p><strong>Average Distance:</strong> <span id="avgDistance">{{ number_format($report['stats']['average_distance'] ?? 0, 2) }}</span> km</p>
-                            <p><strong>Total Distance:</strong> <span id="totalDistance">{{ number_format($report['stats']['total_distance'] ?? 0, 2) }}</span> km</p>
-                        </div>
-                        <div class="col-md-6">
-                            <p><strong>Total Orders Assigned:</strong> <span id="totalOrdersAssigned">{{ $report['stats']['total_orders_assigned'] ?? 0 }}</span></p>
-                            <p><strong>Total Orders Remaining:</strong> <span id="totalOrdersRemaining">{{ $report['stats']['total_orders_remaining'] ?? 0 }}</span></p>
-                            <p><strong>Utilization Rate:</strong> <span id="utilizationRate">{{ number_format($report['stats']['utilization_rate'] ?? 0, 1) }}</span>%</p>
-                        </div>
+
+            <div class="col-md-6">
+                <div class="card shadow-sm mb-3">
+                    <div class="card-header bg-white">Restaurant Orders</div>
+                    <div class="table-responsive" style="max-height: 330px;">
+                        <table class="table table-hover mb-0" id="resTable">
+                            <thead class="table-light sticky-top">
+                                <tr>
+                                    <th class="sortable" data-type="num">ID</th>
+                                    <th class="sortable" data-type="string">Name</th>
+                                    <th class="sortable" data-type="num">Before</th>
+                                    <th class="sortable" data-type="num">After</th>
+                                    <th>Drivers</th>
+                                </tr>
+                            </thead>
+                            <tbody id="restaurantsComparison">
+                                @php
+                                    $colors = [
+                                        '#FF5733',
+                                        '#480607',//Bulgarian Rose
+                                        '#3357FF',
+                                        '#2f4f4f',//Dark Slate Grey
+                                        '#FF33F3',
+                                        '#008080',//Teal
+                                        '#8A2BE2',
+                                        '#e30b5d',//Raspberry
+                                        '#e2725b',//Terra Cotta
+                                        '#da9100'//Harvest Gold
+                                    ];
+                                    $driverColl = collect($report['drivers']);
+                                @endphp
+                                @foreach ($report['restaurants_before'] as $index => $resBefore)
+                                    @php
+                                        $resAfter = $report['restaurants_after'][$index];
+                                        $rowColor = $colors[$index % count($colors)];
+                                        $assigned = $driverColl
+                                            ->where('assigned_restaurant_id', $resBefore['id'])
+                                            ->pluck('id')
+                                            ->implode(', ');
+                                    @endphp
+                                    <tr style="background-color: {{ $rowColor }}; color: white;">
+                                        <td>{{ $resBefore['id'] }}</td>
+                                        <td>{{ $resBefore['title'] }}</td>
+                                        <td>{{ $resBefore['orders_count'] }}</td>
+                                        <td>{{ $resAfter['orders_count'] }}</td>
+                                        <td>{{ $assigned ?: '—' }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card shadow-sm">
+                    <div class="card-header bg-white">Driver Assignments</div>
+                    <div class="table-responsive" style="max-height: 330px;">
+                        <table class="table table-sm table-striped mb-0" id="driverTable">
+                            <thead class="table-light sticky-top">
+                                <tr>
+                                    <th class="sortable" data-type="num">ID</th>
+                                    <th class="sortable" data-type="num">Orders</th>
+                                    <th class="sortable" data-type="num">Restaurant ID</th>
+                                    <th class="sortable" data-type="string">Restaurant</th>
+                                    <th class="sortable" data-type="num">Dist</th>
+                                    <th class="sortable" data-type="string">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="driversTable">
+                                @foreach ($report['drivers'] as $driver)
+                                    <tr>
+                                        <td>{{ $driver['id'] }}</td>
+                                        <td>{{ $driver['orders_assigned'] }}</td>
+                                        <td>{{ $driver['assigned_restaurant_id'] }}</td>
+                                        <td>{{ $driver['assigned_restaurant_title'] }}</td>
+                                        <td>{{ number_format($driver['distance_to_assigned'], 2) }}</td>
+                                        <td>
+                                            <span
+                                                class="badge {{ $driver['assigned_restaurant_id'] > 0 ? 'bg-success' : 'bg-secondary' }}">
+                                                {{ $driver['assigned_restaurant_id'] > 0 ? 'Assigned' : 'Idle' }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
         </div>
-
-        <div class="map-container">
-            <h3>Map</h3>
-            <div id="map"></div>
-            {{-- <div class="legend mt-2">
-                <h5>Legend</h5>
-                <p><span style="background-color: #da9100; color: white; padding: 2px 6px; border: 1px solid #000; border-radius: 2px; font-size: 12px; font-weight: bold;">n</span> Restaurant</p>
-                <p>
-  <span style="background-color: #da9100; color: white; padding: 2px 6px; border: 1px solid #000; border-radius: 50%; font-size: 12px; font-weight: bold;">n</span>
-  Driver (color indicates assigned restaurant)
-</p>
-            </div> --}}
-        </div>
-
-        <div class="mt-4">
-            <h3>Restaurant Orders</h3>
-            <div class="table-responsive">
-                <table class="table table-striped table-bordered restaurant-table">
-                    <thead class="">
-                        <tr>
-                            <th>Restaurant ID</th>
-                            <th>Name</th>
-                            <th>Orders Before</th>
-                            <th>Orders After</th>
-                            <th>Assigned Drivers</th>
-                        </tr>
-                    </thead>
-                    <tbody id="restaurantsComparison">
-                        @if(isset($report['restaurants_before']) && isset($report['restaurants_after']) && is_array($report['restaurants_before']) && is_array($report['restaurants_after']))
-                            @foreach ($report['restaurants_before'] as $index => $restaurantBefore)
-                                @php
-                                    $restaurantAfter = $report['restaurants_after'][$index] ?? ['orders_count' => 0];
-
-                                    // Find drivers assigned to this restaurant
-                                    $assignedDriverIds = [];
-                                    if (isset($report['drivers']) && is_array($report['drivers'])) {
-                                        foreach ($report['drivers'] as $driver) {
-                                            if (($driver['assigned_restaurant_id'] ?? 0) == ($restaurantBefore['id'] ?? 0)) {
-                                                $assignedDriverIds[] = $driver['id'];
-                                            }
-                                        }
-                                    }
-                                @endphp
-                                @php
-                                    // Define restaurant color palette
-                                    $restaurantColors = [
-                                        '#FF0000', // Red
-                                        '#0000FF', // Blue
-                                        '#008000', // Green
-                                        '#800080', // Purple
-                                        '#FF8C00', // Dark Yellow
-                                        '#FF00FF', // Magenta
-                                        '#FFA500', // Orange
-                                        '#00FFFF', // Cyan
-                                        '#000000', // Black
-                                    ];
-                                    $colorIndex = $index % count($restaurantColors);
-                                    $color = $restaurantColors[$colorIndex];
-                                    $textColor = ($color === '#000000' || $color === '#0000FF' || $color === '#800080') ? '#FFFFFF' : '#000000';
-                                @endphp
-                                <tr style="background-color: {{ $color }}; color: {{ $textColor }};">
-                                    <td>{{ $index + 1 }}</td>
-                                    <td>{{ $restaurantBefore['title'] ?? 'Unknown' }}</td>
-                                    <td>{{ $restaurantBefore['orders_count'] ?? 0 }}</td>
-                                    <td>{{ $restaurantAfter['orders_count'] ?? 0 }}</td>
-                                    <td>{{ implode(', ', $assignedDriverIds) }}</td>
-                                </tr>
-                            @endforeach
-                        @else
-                            <tr>
-                                <td colspan="5" class="text-center">No restaurant data available</td>
-                            </tr>
-                        @endif
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <div class="mt-4">
-            <h3>Driver Assignments (All 100 Drivers)</h3>
-            <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
-                <table class="table table-striped table-bordered">
-                    <thead style="">
-                        <tr>
-                            <th class="sortable" data-sort="drivers">Driver ID</th>
-                            <th class="sortable" data-sort="orders">Orders</th>
-                            <th class="sortable" data-sort="restaurant_id">Restaurant ID</th>
-                            <th class="sortable" data-sort="restaurant_name">Restaurant Name (Assigned)</th>
-                            <th class="sortable" data-sort="distance">Distance</th>
-                            <th class="sortable" data-sort="closest_restaurant">Closest Restaurant</th>
-                            <th class="sortable" data-sort="closest_dist">Closest Dist</th>
-                        </tr>
-                    </thead>
-                    <tbody id="driversTable">
-                        @if(isset($report['drivers']) && is_array($report['drivers']))
-                            @foreach ($report['drivers'] as $driver)
-                                @php
-                                    // Find orders from restaurants for this driver
-                                    $ordersFromRestaurants = [];
-                                    if (isset($report['restaurants_before']) && is_array($report['restaurants_before'])) {
-                                        foreach ($report['restaurants_before'] as $restaurant) {
-                                            if (($restaurant['id'] ?? 0) == ($driver['assigned_restaurant_id'] ?? 0)) {
-                                                $ordersFromRestaurants[] = $restaurant['id'];
-                                            }
-                                        }
-                                    }
-                                @endphp
-                            <tr class="driver-row">
-                                <td>{{ $driver['id'] ?? 'N/A' }}</td>
-                                <td>{{ $driver['orders_assigned'] ?? 0 }}</td>
-                                <td>{{ implode(', ', $ordersFromRestaurants) }}</td>
-                                <td>{{ $driver['assigned_restaurant_title'] ?? 'N/A' }}</td>
-                                <td>{{ isset($driver['distance_to_assigned']) ? number_format($driver['distance_to_assigned'], 2) : '0.00' }} km</td>
-                                <td>{{ $driver['closest_restaurant_title'] ?? 'N/A' }}</td>
-                                <td>{{ isset($driver['distance_to_closest']) ? number_format($driver['distance_to_closest'], 2) : '0.00' }} km</td>
-                            </tr>
-                            @endforeach
-                        @else
-                            <tr>
-                                <td colspan="7" class="text-center">No driver data available</td>
-                            </tr>
-                        @endif
-                    </tbody>
-                </table>
-            </div>
-        </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        window.initialReport = @json($report);
+    </script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script>
-        // Global map variable
-        let map;
-        let restaurantMarkers = [];
-        let driverMarkers = [];
-        let driversLines = [];
-
-        // Fixed color palette for restaurants (consistent index-based)
-        const restaurantColors = [
-            '#FF5733',
-            '#480607',//Bulgarian Rose
-            '#3357FF',
-            '#2f4f4f',//Dark Slate Grey
-            '#FF33F3',
-            '#008080',//Teal
-            '#8A2BE2',
-            '#e30b5d',//Raspberry
-            '#e2725b',//Terra Cotta
-            '#da9100'//Harvest Gold
-        ];
-
-        // Initialize map
-        function initMap() {
-            try {
-                map = L.map('map').setView([42.6977, 23.3219], 12); // Sofia center
-
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                }).addTo(map);
-
-                // Initialize with current data
-                const initialData = @json($report);
-                updateMap(initialData);
-            } catch (error) {
-                console.error('Error initializing map:', error);
-                $('#map').html('<div class="alert alert-danger">Error loading map. Please refresh the page.</div>');
-            }
-        }
-
-        // Update map with new data
-        function updateMap(data) {
-            // Clear existing markers and lines
-            if (restaurantMarkers.length > 0) {
-                restaurantMarkers.forEach(marker => map.removeLayer(marker));
-            }
-            if (driverMarkers.length > 0) {
-                driverMarkers.forEach(marker => map.removeLayer(marker));
-            }
-            if (driversLines.length > 0) {
-                driversLines.forEach(line => map.removeLayer(line));
-            }
-            restaurantMarkers = [];
-            driverMarkers = [];
-            driversLines = [];
-
-            // Add restaurants as compact numbered markers
-            if (data.restaurants_after && data.restaurants_after.length > 0) {
-                data.restaurants_after.forEach((restaurant, index) => {
-                    const color = restaurantColors[index % restaurantColors.length];
-
-                    // Create a compact square marker with the restaurant number
-                    const restaurantIcon = L.divIcon({
-                        html: `<div style="
-                            width: 24px;
-                            height: 24px;
-                            background-color: ${color};
-                            border: 1px solid #000;
-                            border-radius: 2px;
-                            display: flex;
-                            align-items: center;
-                            justify-content: center;
-                            font-size: 12px;
-                            font-weight: bold;
-                            color: white;
-                            box-shadow: 1px 1px 2px rgba(0,0,0,0.3);
-                        ">${index + 1}</div>`,
-                        iconSize: [24, 24],
-                        iconAnchor: [12, 12],
-                        className: 'restaurant-marker'
-                    });
-
-                    const marker = L.marker([parseFloat(restaurant.lat), parseFloat(restaurant.lng)], {
-                        icon: restaurantIcon,
-                        zIndexOffset: 1000
-                    }).addTo(map);
-
-                    marker.bindPopup(`<b>${restaurant.title}</b><br>Orders: ${restaurant.orders_count}`);
-                    restaurantMarkers.push(marker);
-
-                    // Store color and index for this restaurant
-                    restaurant.color = color;
-                    restaurant.colorIndex = index;
-                    restaurant.number = index + 1;
-                });
-            }
-
-            // Add drivers as circles with numbers and draw lines to restaurants
-            if (data.drivers && data.drivers.length > 0) {
-                data.drivers.forEach(driver => {
-                    // Find the assigned restaurant
-                    const assignedRestaurant = data.restaurants_after.find(r => r.id === driver.assigned_restaurant_id);
-                    if (assignedRestaurant) {
-                        const color = assignedRestaurant.color || restaurantColors[assignedRestaurant.colorIndex % restaurantColors.length];
-
-                        // Draw line from restaurant to driver (solid line)
-                        const line = L.polyline([
-                            [parseFloat(assignedRestaurant.lat), parseFloat(assignedRestaurant.lng)],
-                            [parseFloat(driver.position.lat), parseFloat(driver.position.lng)]
-                        ], {
-                            color: color,
-                            weight: 2,
-                            opacity: 0.7
-                        }).addTo(map);
-                        driversLines.push(line);
-
-                        // Create driver marker with number label
-                        const marker = L.circleMarker([parseFloat(driver.position.lat), parseFloat(driver.position.lng)], {
-                            radius: 7,
-                            fillColor: color,
-                            color: '#000',
-                            weight: 1,
-                            opacity: 1,
-                            fillOpacity: 0.8,
-                            zIndexOffset: 100
-                        }).addTo(map);
-                        driverMarkers.push(marker);
-
-                        // Add text label with driver number
-                        const label = L.divIcon({
-                            html: `<div style="font-size: 10px; font-weight: bold; color: white; text-align: center; line-height: 14px;">${driver.id}</div>`,
-                            iconSize: [14, 14],
-                            className: 'driver-label'
-                        });
-
-                        const textMarker = L.marker([parseFloat(driver.position.lat), parseFloat(driver.position.lng)], {
-                            icon: label,
-                            zIndexOffset: 150
-                        }).addTo(map);
-                        driverMarkers.push(textMarker);
-                    }
-                });
-            }
-
-            // Add unassigned drivers to the map (grey color)
-            if (data.drivers && data.drivers.length > 0) {
-                data.drivers.forEach(driver => {
-                    if (!driver.assigned_restaurant_id || driver.assigned_restaurant_id === 0) {
-                        const marker = L.circleMarker([parseFloat(driver.position.lat), parseFloat(driver.position.lng)], {
-                            radius: 7,
-                            fillColor: '#808080',
-                            color: '#666666',
-                            weight: 1,
-                            opacity: 1,
-                            fillOpacity: 0.8,
-                            zIndexOffset: 100
-                        }).addTo(map);
-                        driverMarkers.push(marker);
-
-                        const label = L.divIcon({
-                            html: `<div style="font-size: 10px; font-weight: bold; color: white; text-align: center; line-height: 14px;">${driver.id}</div>`,
-                            iconSize: [14, 14],
-                            className: 'driver-label'
-                        });
-
-                        const textMarker = L.marker([parseFloat(driver.position.lat), parseFloat(driver.position.lng)], {
-                            icon: label,
-                            zIndexOffset: 150
-                        }).addTo(map);
-                        driverMarkers.push(textMarker);
-                    }
-                });
-            }
-        }
-
-        // Table sorting functionality
-        function setupTableSorting() {
-            $('.sortable').click(function() {
-                const column = $(this).data('sort');
-                const table = $(this).closest('table');
-                const tbody = table.find('tbody');
-                const rows = tbody.find('tr').get();
-
-                // Determine sort direction
-                const isAsc = $(this).hasClass('sort-asc');
-
-                // Remove sort classes from all headers
-                table.find('.sortable').removeClass('sort-asc sort-desc');
-
-                // Add appropriate class to clicked header
-                $(this).addClass(isAsc ? 'sort-desc' : 'sort-asc');
-
-                // Sort rows
-                rows.sort(function(a, b) {
-                    const aValue = $(a).find('td:nth-child(' + ($(this).index() + 1) + ')').text();
-                    const bValue = $(b).find('td:nth-child(' + ($(this).index() + 1) + ')').text();
-
-                    // Extract numeric value for distance columns
-                    let aNum = parseFloat(aValue.replace(/[^0-9.]/g, ''));
-                    let bNum = parseFloat(bValue.replace(/[^0-9.]/g, ''));
-
-                    // If numeric comparison works, use it
-                    if (!isNaN(aNum) && !isNaN(bNum)) {
-                        return isAsc ? aNum - bNum : bNum - aNum;
-                    }
-
-                    // Otherwise use text comparison
-                    return isAsc
-                        ? aValue.localeCompare(bValue)
-                        : bValue.localeCompare(aValue);
-                }.bind(this));
-
-                // Re-add sorted rows
-                $.each(rows, function(index, row) {
-                    tbody.append(row);
-                });
-            });
-        }
-
-        $(document).ready(function() {
-            // Initialize map when DOM is ready and map container is visible
-            if ($('#map').length > 0) {
-                // Small delay to ensure container is properly rendered
-                setTimeout(function() {
-                    initMap();
-                }, 100);
-            } else {
-                console.error('Map container not found');
-            }
-
-            // Setup table sorting
-            setupTableSorting();
-
-            $('#simulateBtn').click(function() {
-                $(this).prop('disabled', true).text('Simulating...');
-
-                $.ajax({
-                    url: '/restaurant/simulate',
-                    method: 'GET',
-                    success: function(response) {
-                        // Update statistics
-                        $('#totalDrivers').text(response.stats.total_drivers_assigned);
-                        $('#avgDistance').text(parseFloat(response.stats.average_distance).toFixed(2));
-                        $('#totalDistance').text(parseFloat(response.stats.total_distance).toFixed(2));
-                        $('#totalOrdersAssigned').text(response.stats.total_orders_assigned);
-                        $('#totalOrdersRemaining').text(response.stats.total_orders_remaining);
-                        $('#utilizationRate').text(parseFloat(response.stats.utilization_rate).toFixed(1));
-
-                        // Update restaurant comparison table
-                        let restaurantsHtml = '';
-                        const restaurantColors = [
-                            '#FF5733', '#480607', '#3357FF', '#2f4f4f', '#FF33F3',
-                            '#008080', '#8A2BE2', '#e30b5d', '#e2725b', '#da9100'
-                        ];
-
-                        if (response.restaurants_before && response.restaurants_after) {
-                            response.restaurants_before.forEach(function(restaurantBefore, index) {
-                                const restaurantAfter = response.restaurants_after[index] || { orders_count: 0 };
-
-                                // Find drivers assigned to this restaurant
-                                let assignedDriverIds = [];
-                                if (response.drivers && response.drivers.length > 0) {
-                                    response.drivers.forEach(function(driver) {
-                                        if (driver.assigned_restaurant_id === restaurantBefore.id) {
-                                            assignedDriverIds.push(driver.id);
-                                        }
-                                    });
-                                }
-
-                                const colorIndex = index % restaurantColors.length;
-                                const color = restaurantColors[colorIndex];
-                                const textColor = (color === '#000000' || color === '#0000FF' || color === '#800080') ? '#FFFFFF' : '#000000';
-
-                                restaurantsHtml += `
-                                    <tr style="background-color: ${color}; color: ${textColor};">
-                                        <td>${index + 1}</td>
-                                        <td>${restaurantBefore.title || 'Unknown'}</td>
-                                        <td>${restaurantBefore.orders_count || 0}</td>
-                                        <td>${restaurantAfter.orders_count || 0}</td>
-                                        <td>${assignedDriverIds.join(', ') || '—'}</td>
-                                    </tr>
-                                `;
-                            });
-                        }
-                        $('#restaurantsComparison').html(restaurantsHtml);
-
-                        // Update drivers table - ALL drivers including unassigned
-                        let driversHtml = '';
-                        if (response.drivers && response.drivers.length > 0) {
-                            response.drivers.forEach(function(driver) {
-                                driversHtml += `
-                                    <tr class="driver-row">
-                                        <td><strong>${driver.id}</strong></td>
-                                        <td>${driver.orders_assigned || 0}</td>
-                                        <td>${driver.assigned_restaurant_id || 'Unassigned'}</td>
-                                        <td>${driver.assigned_restaurant_title || 'Unassigned'}</td>
-                                        <td>${driver.distance_to_assigned ? driver.distance_to_assigned.toFixed(2) : '—'} ${driver.distance_to_assigned ? 'km' : ''}</td>
-                                        <td>${driver.closest_restaurant_title || 'N/A'}</td>
-                                        <td>${driver.distance_to_closest ? driver.distance_to_closest.toFixed(2) : '0.00'} km</td>
-                                    </tr>
-                                `;
-                            });
-                        } else {
-                            driversHtml = '<tr><td colspan="7" class="text-center">No drivers available</td></tr>';
-                        }
-                        $('#driversTable').html(driversHtml);
-
-                        // Update map
-                        updateMap(response);
-
-                        $('#simulateBtn').prop('disabled', false).text('Run New Simulation');
-                    },
-                    error: function(xhr, status, error) {
-                        console.error('Simulation error:', error);
-                        alert('Error running simulation: ' + (error || 'Unknown error'));
-                        $('#simulateBtn').prop('disabled', false).text('Run New Simulation');
-                    }
-                });
-            });
-        });
-    </script>
+    <script src="{{ asset('js/app.js') }}"></script>
 </body>
+
 </html>
