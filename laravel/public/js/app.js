@@ -1,15 +1,4 @@
-const COLORS = [
-    '#FF5733',
-    '#480607',
-    '#3357FF',
-    '#2f4f4f',
-    '#FF33F3',
-    '#008080',
-    '#8A2BE2',
-    '#e30b5d',
-    '#e2725b',
-    '#da9100'
-];
+let COLORS = typeof APP_COLORS !== 'undefined' ? APP_COLORS : [];
 
 let map, restaurantMarkers = [], driverMarkers = [], driversLines = [];
 
@@ -27,7 +16,7 @@ function updateMap(data) {
     restaurantMarkers = []; driverMarkers = []; driversLines = [];
 
     data.restaurants_after.forEach((res, i) => {
-        const color = COLORS[i % COLORS.length];
+        const color = COLORS[i % COLORS.length] || '#808080';
         const icon = L.divIcon({
             html: `<div style="background:${color}; width:28px; height:28px; color:white; text-align:center; line-height:28px; border:2px solid #000; border-radius:4px; font-weight:bold; font-size:14px;">${i+1}</div>`,
             className: 'res-marker',
@@ -111,7 +100,7 @@ $(document).ready(function() {
             dataType: 'json',
             success: function(res) {
 
-console.log(res.stats);
+// console.log(res.stats);
 
                 $('#totalDrivers').text(res.stats.total_drivers_assigned);
                 $('#avgDistance').text(res.stats.average_distance.toFixed(2));
@@ -121,13 +110,13 @@ console.log(res.stats);
                 let resHtml = '';
                 res.restaurants_before.forEach((rb, i) => {
                     const ra = res.restaurants_after[i];
+                    const color = COLORS[i % COLORS.length] || '#808080';
                     const dIds = res.drivers.filter(d => d.assigned_restaurant_id === rb.id).map(d => d.id).join(', ');
-                    resHtml += `<tr style="background-color: ${COLORS[i % COLORS.length]}; color: white;">
+                    resHtml += `<tr style="background-color: ${color}; color: white;">
                         <td>${rb.id}</td><td>${rb.title}</td><td>${rb.orders_count}</td><td>${ra.orders_count}</td><td>${dIds || '—'}</td></tr>`;
                 });
                 $('#restaurantsComparison').html(resHtml);
 
-                // Update Driver Table
                 let dHtml = '';
                 res.drivers.forEach(d => {
                     dHtml += `

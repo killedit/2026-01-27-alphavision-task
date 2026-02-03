@@ -27,7 +27,7 @@
         'Utilization' => ['id' => 'utilizationRate', 'val' => number_format($report['stats']['utilization_rate'], 1), 'unit' => '%'],
     ] as $label => $stat)
                 <div class="col-md-3">
-                    <div class="card shadow-sm border-0 bg-light">
+                    <div class="card mb-3 shadow-sm">
                         <div class="card-body p-2">
                             <small class="text-muted d-block">{{ $label }}</small>
                             <span id="{{ $stat['id'] }}" class="h4 mb-0">{{ $stat['val'] }}</span>
@@ -64,18 +64,11 @@
                             </thead>
                             <tbody id="restaurantsComparison">
                                 @php
-                                    $colors = [
-                                        '#FF5733',
-                                        '#480607',//Bulgarian Rose
-                                        '#3357FF',
-                                        '#2f4f4f',//Dark Slate Grey
-                                        '#FF33F3',
-                                        '#008080',//Teal
-                                        '#8A2BE2',
-                                        '#e30b5d',//Raspberry
-                                        '#e2725b',//Terra Cotta
-                                        '#da9100'//Harvest Gold
-                                    ];
+                                    $path = public_path('js/simulation_config.js');
+                                    $content = file_exists($path) ? file_get_contents($path) : '';
+                                    preg_match_all('/#[a-fA-F0-9]{6}/', $content, $matches);
+                                    $colors = $matches[0] ?? ['#808080'];
+
                                     $driverColl = collect($report['drivers']);
                                 @endphp
                                 @foreach ($report['restaurants_before'] as $index => $resBefore)
@@ -143,6 +136,7 @@
     </script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="{{ asset('js/simulation_config.js') }}"></script>
     <script src="{{ asset('js/app.js') }}"></script>
 </body>
 

@@ -42,7 +42,7 @@ A dockerized Laravel application that makes migrations and seeds the db at the s
 
 http://localhost:8087/restaurant 
 
-![Home](laravel/resources/images/2026-01-27-alphavision-task-home.png)
+![Home](laravel/resources/images/2026-01-27-alphavision-task-simulation.png)
 
 # Refactoring
 
@@ -57,4 +57,4 @@ php artisan make:class Services/GeoService
 php artisan make:class Services/RestaurantSystem
 ```
 
-Old classes have been renamed with `_{class}` to avoid confusion.
+Old classes have been renamed as `_{className}` to avoid confusion.
