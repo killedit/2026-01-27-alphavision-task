@@ -134,7 +134,6 @@ $(document).ready(function() {
                 updateMap(res);
             },
             error: function(xhr) {
-                alert("Simulation failed. Check Laravel logs.");
                 console.error(xhr.responseText);
             },
             complete: function() {

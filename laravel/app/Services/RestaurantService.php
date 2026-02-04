@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Driver;
 use App\Models\Restaurant;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 
 class RestaurantService
 {
@@ -31,10 +32,18 @@ class RestaurantService
         }
 
         foreach (Driver::all() as $driver) {
-            // Assign a restaurant to a driver.
+            // Get randomly a restaurant from the collection.
             $base = $restaurants->random();
 
-            // Put a driver within ~5km of a restaurant.
+            /**
+             * Put a driver from -0.05 to 0.05 of a restaurant.
+             * 0.001 degrees is roughly equal to 111 meters at the equator.
+             * 50/1000 = 0.05 ~ 5.55km
+             *
+             * "id" => 7
+             * "lat" => "42.6966060"
+             * "lng" => "23.3204766"
+             */
             $driver->update([
                 'lat' => $base->lat + (rand(-50, 50) / 1000),
                 'lng' => $base->lng + (rand(-50, 50) / 1000),
@@ -95,6 +104,10 @@ class RestaurantService
             }
         }
 
+// dd(
+//     $assignments
+// );
+
         return $assignments;
     }
 
@@ -105,20 +118,52 @@ class RestaurantService
         $bestDist = 0;
 
         foreach ($restaurants as $restaurant) {
-            if ($restaurant->orders_count <= 0) continue;
+            if ($restaurant->orders_count <= 0) {
+                continue;
+            }
 
-            $distance = $this->geoService->distance($driver->lat, $driver->lng, $restaurant->lat, $restaurant->lng);
+            $distance = $this->geoService->distance(
+                $driver->lat,
+                $driver->lng,
+                $restaurant->lat,
+                $restaurant->lng
+            );
 
+            /**
+             * The algorithm always picks the restaurant with the lowest score and most orders firstly.
+             */
             $score = (self::DISTANCE_WEIGHT * $distance) - (self::ORDER_WEIGHT * $restaurant->orders_count);
 
-            if ($score < $bestScore) {
+            if ($score < $bestScore) {//-3 < max
                 $bestScore = $score;
                 $selected = $restaurant;
                 $bestDist = $distance;
             }
+
+// Log::debug(
+// "\$driver->id: ".
+// $driver->id.
+// ", \$restaurant->id: ".
+// $restaurant->id.
+// ", \$distance: ".
+// $distance.
+// ", \$score: ".
+// $score.
+// ", \$bestScore: ".
+// $bestScore.
+// ", \$bestDist: ".
+// $bestDist
+// );
+
         }
 
-        return $selected ? ['restaurant' => $selected, 'score' => $bestScore, 'distance' => $bestDist] : null;
+// exit();
+
+        return $selected ? [
+                'restaurant' => $selected,
+                'score' => $bestScore,
+                'distance' => $bestDist
+            ] : null;
     }
 
     private function formatReportData($before, $restaurantsAfter, $allDrivers, $assignments): array
@@ -134,7 +179,13 @@ class RestaurantService
             'assigned_restaurant_title' => $assignmentMap[$driver->id]['restaurant_title'] ?? 'Unassigned',
             'orders_assigned' => $assignmentMap[$driver->id]['orders_assigned'] ?? 0,
             'distance_to_assigned' => $assignmentMap[$driver->id]['distance'] ?? 0,
+            'assignment_score' => $assignmentMap[$driver->id]['score'] ?? 0,
         ]);
+
+// dd(
+//     $before,
+//     $restaurantsAfter
+// );
 
         return [
             'restaurants_before' => $before,

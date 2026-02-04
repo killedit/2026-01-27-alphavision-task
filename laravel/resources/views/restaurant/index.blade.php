@@ -12,6 +12,7 @@
 
 <body>
     <div class="container-fluid py-3">
+
         <div class="card mb-3 shadow-sm">
             <div class="card-body d-flex justify-content-between align-items-center">
                 <h2 class="mb-0">Simulation Statistics:</h2>
@@ -21,11 +22,27 @@
 
         <div class="row g-3 mb-3 text-center">
             @foreach ([
-        'Drivers Assigned' => ['id' => 'totalDrivers', 'val' => $report['stats']['total_drivers_assigned'], 'unit' => ''],
-        'Avg Distance' => ['id' => 'avgDistance', 'val' => number_format($report['stats']['average_distance'], 2), 'unit' => 'km'],
-        'Orders Picked' => ['id' => 'totalOrdersAssigned', 'val' => $report['stats']['total_orders_assigned'], 'unit' => ''],
-        'Utilization' => ['id' => 'utilizationRate', 'val' => number_format($report['stats']['utilization_rate'], 1), 'unit' => '%'],
-    ] as $label => $stat)
+                'Drivers Assigned' => [
+                    'id' => 'totalDrivers',
+                    'val' => $report['stats']['total_drivers_assigned'],
+                    'unit' => ''
+                ],
+                'Avg Distance' => [
+                    'id' => 'avgDistance',
+                    'val' => number_format($report['stats']['average_distance'], 2),
+                    'unit' => 'km'
+                ],
+                'Orders Picked' => [
+                    'id' => 'totalOrdersAssigned',
+                    'val' => $report['stats']['total_orders_assigned'],
+                    'unit' => ''
+                ],
+                'Utilization' => [
+                    'id' => 'utilizationRate',
+                    'val' => number_format($report['stats']['utilization_rate'], 1),
+                    'unit' => '%'
+                ],
+            ] as $label => $stat)
                 <div class="col-md-3">
                     <div class="card mb-3 shadow-sm">
                         <div class="card-body p-2">
@@ -40,17 +57,21 @@
 
         <div class="row g-3">
             <div class="col-md-6">
+
                 <div class="card shadow-sm h-100">
                     <div class="card-header bg-white font-weight-bold">Logistics Map</div>
                     <div class="card-body p-0">
                         <div id="map" style="height: 100%; width: 100%;"></div>
                     </div>
                 </div>
+
             </div>
 
             <div class="col-md-6">
+
                 <div class="card shadow-sm mb-3">
                     <div class="card-header bg-white">Restaurant Orders</div>
+
                     <div class="table-responsive" style="max-height: 330px;">
                         <table class="table table-hover mb-0" id="resTable">
                             <thead class="table-light sticky-top">

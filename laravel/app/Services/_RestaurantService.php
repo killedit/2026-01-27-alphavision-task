@@ -24,9 +24,7 @@ class _RestaurantService
     public function randomize(): void
     {
         $restaurants = Restaurant::all();
-// dd(
-//     $restaurants
-// );
+
         foreach ($restaurants as $restaurant) {
             $restaurant->update(['orders_count' => rand(5, 50)]);
         }
@@ -52,11 +50,6 @@ class _RestaurantService
 
         $assignments = [];
 
-// dd(
-//     $drivers,
-//     $restaurants
-// );
-
         while($drivers->isNotEmpty() && $restaurants->sum('orders_count') > 0) {
             $driver = $drivers->shift();
 
@@ -80,21 +73,11 @@ class _RestaurantService
             }
         }
 
-// dd(
-//     $assignments
-// );
-
         return $assignments;
     }
 
     private function findBestMatch(Driver $driver, Collection $restaurants): ?array
     {
-
-// dd(
-//     $driver,
-//     $restaurants
-// );
-
         $bestScore = PHP_FLOAT_MAX;
         $selected = null;
 
@@ -102,13 +85,6 @@ class _RestaurantService
             if ($restaurant->orders_count <= 0) {
                 continue;
             }
-
-// dd(
-//     $driver->lat,
-//     $driver->lng,
-//     $restaurant->lat,
-//     $restaurant->lng
-// );
 
             $distance = $this->geoService->distance(
                 $driver->lat,
@@ -143,12 +119,7 @@ class _RestaurantService
         $assignments = $this->solve();
 
         $restaurantsAfter = Restaurant::all()->map(fn($r) => $r->toArray())->toArray();
-// dd(
-//     $before,
-//     $restaurants,
-//     // $drivers,
-//     // $assignments
-// );
+
         return $this->formatReportData($before, $restaurants, $drivers, $assignments);
     }
 
@@ -168,11 +139,6 @@ class _RestaurantService
             'orders_assigned' => $assignmentMap[$driver->id]['orders_assigned'] ?? 0,
             'distance_to_assigned' => $assignmentMap[$driver->id]['distance'] ?? 0,
         ]);
-
-dd(
-    $before,
-    $restaurantsAfter->toArray()
-);
 
         // 2. Final Report Assembly
         return [
