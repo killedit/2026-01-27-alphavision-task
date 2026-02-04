@@ -257,8 +257,21 @@ RestaurantServiceTest.php tests:
 3. Driver capacity - tehy should not take more orders than expected. Very similar to test (1), but here i test what will happen if the driver has capacity 10 which is in conflict with the contant of 1 to 4.
 4. Test which driver will be preferred and what will happen if there are drivers with more capacity than restaurant orders.
 
+## Integration test
 
-test_solve_assigns_drivers_to_restaurants
-test_solve_prioritizes_restaurants_with_more_orders
-test_solve_respects_driver_capacity
-test_solve_skips_empty_restaurants_and_unassigned_drivers
+Actually the Integration test helped me find an issue with my application. Stunner! I had to add this line  `$restaurant->save();` in solve() right after I remove orders from a restaurant to match what we expect in RestaurantIntegrationTest.php.
+
+```php
+./vendor/bin/phpunit tests/Feature/RestaurantIntegrationTest.php
+```
+
+This leads to adding this function in RestautantService, but I was not sure if it should be added in the Controller. Currently I use it only for the Intergration test:
+
+```php
+public function updateDatabaseAfterSolve($restaurants, $assignments) {
+    foreach ($assignments as $assignment) {
+        $restaurant = $restaurants->firstWhere('id', $assignment['restaurant_id']);
+        $restaurant->decrement('orders_count', $assignment['orders_assigned']);
+    }
+}
+```

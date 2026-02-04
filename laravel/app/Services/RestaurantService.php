@@ -111,6 +111,13 @@ class RestaurantService
         return $assignments;
     }
 
+    public function updateDatabaseAfterSolve($restaurants, $assignments) {
+        foreach ($assignments as $assignment) {
+            $restaurant = $restaurants->firstWhere('id', $assignment['restaurant_id']);
+            $restaurant->decrement('orders_count', $assignment['orders_assigned']);
+        }
+    }
+
     private function findBestMatch($driver, Collection $restaurants): ?array
     {
         $bestScore = PHP_FLOAT_MAX;
