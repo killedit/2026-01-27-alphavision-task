@@ -1,4 +1,6 @@
-# Algorithm Orders Task
+# Algorithm for assigning Drivers to Restaurant Orders
+
+Randomly place 100 drivers with random number of orders (1-4) they can take. Place fixed positioned restaurants which random number of orders (5-50). Then calculate based on distance and orders weight the best solution to handle as many orders as possible.
 
 ## Setup
 ```
@@ -7,7 +9,7 @@ git clone https://github.com/killedit/2026-01-27-alphavision-task.git
 docker compose up -d --build
 ```
 
-## DB
+## Conntect to the DB
 
 Option 1: Connect to `alphavision-mysql-1` container:
 
@@ -36,30 +38,26 @@ Driver properties:
 Test Connection...
 ```
 
-## Application
+## The Application
 
-A dockerized Laravel application that makes migrations and seeds the db at the setup step. It's creating 100 `drivers` randomply positioned on the map, fixed number of `restaurants` and random number of orders in each `restaurant`. The logic is that in the end each `restaurant` has same number of orders. `Drivers` that are closer to a `restaurant` are prefered, should not travel further than 5km and they can get only randomly 1-4 orders. I did not complicate things with one `driver` being able to get orders from more than one `restaurant`. Unassigned drivers are displayed in grey.
+A dockerized Laravel application that makes migrations and seeds the db at the setup step. It's creating 100 `drivers` randomply positioned on the map, fixed number of `restaurants` and random number of orders in each `restaurant`. The logic is that in the end each `restaurant` has same number of orders. `Drivers` that are closer to a `restaurant` are prefered, should not travel further than 5km and they can get only randomly 1-4 orders. I did not complicate things with one `driver` being able to get orders from more than one `restaurant`.
 
 http://localhost:8087/restaurant
 
 ![Home](laravel/resources/images/2026-01-27-alphavision-task-simulation.png)
 
-## Refactoring
-
-Updates:
-
-1. The solution is based on service classes now rather than hard coupling or instantiating another class.
+1. The solution is based on service classes.
 
 ```php
 php artisan make:class Services/GeoService
 php artisan make:class Services/RestaurantService
 ```
 
-Now I am suing Dependency Injection and ask for RestaurantService in RestaurantController. Laravel's Service Container builds it. Now we depend on an abstraction (SOLID) and we don't make an instance of another class. Business logic goes to RestaurantService - does the dispatching, GeoService - does the math.
+I am suing Dependency Injection and ask for RestaurantService in RestaurantController. Laravel's Service Container builds it. I depend on an abstraction (SOLID) without making instances of another classes. Business logic goes to RestaurantService - does the dispatching, GeoService - does the math.
 
-2. Before solve() was calling Driver::all() and Restaurant::all() inside itself. Currently we use `Collections` as parameters which allows solve() to work with any set of data. This is the right approach for running tests.
+2. We use `Collections` as parameters which allows solve() to work with any set of data. This is the right approach for running tests.
 
-3. Fixed "Before" state or $before vaiable which was being created in formatReportData() using replicate() on the Restaurants object, creating one more object in the memory. <strong>Why not just use the `original` data in the Collection?</strong> The data is protected, but we could map it in the formatReportData() to $before object/array, but if I use $restaurants->save() or $restaurants->refresh() somewhere the `original` is overwritten with the current attributes. Anyway, this is also bad for testing, because if we use "fake" data often doesn't have `original` state, because it was not loaded from the db.
+3. In "Before" state or `$before` vaiable we record the original state of the restaurants. <strong>Why not just use the `original` data in the Collection?</strong> The data is protected, but we could map it in the formatReportData() to $before object/array, but if I use $restaurants->save() or $restaurants->refresh() somewhere the `original` is overwritten with the current attributes. Anyway, this is also bad for testing, because if we use "fake" data often doesn't have `original` state, because it was not loaded from the db.
 
 ```json
 array:10 [▼ // app/Services/RestaurantService.php:185
@@ -119,7 +117,7 @@ Restaurant {
       ]
 ```
 
-4. Constants: I have replaced hardcoded values like `rand(1, 4)` with descriptive constants like MIN_ORDERS_PER_DRIVER.
+4. I use descriptive constants like MIN_ORDERS_PER_DRIVER to be able to tweak the results:
 
 - `DISTANCE_WEIGHT = 1.0`;
 - `ORDER_WEIGHT = 0.5`;
@@ -130,7 +128,7 @@ Restaurant {
 - `MIN_ORDERS_PER_DRIVER` = 1;
 - `MAX_ORDERS_PER_DRIVER` = 4;
 
-5. Fixed `findBestMatch()`.
+5. The function `findBestMatch()` is Greedy Algorithm which is the best solution for a small task.
 
 The solution depends on two loops on Drivers and Restaurants. In `findBestMatches()` we have a formula that creates a score for each restaurant based on two parameters `DISTANCE_WEIGHT` of a driver to a restaurabt and `ORDER_WEIGHT` the number of orders in a restaurant.
 
@@ -227,8 +225,6 @@ Added more meaningful metrics like `Utilization Rate` and `Average Distance`. I 
 
 In conclusion the application works better now and restaurants with more orders are prefered than closer restaurants.</br>
 This can be easily asessed on the map.</br>
-
-P.S. Old classes are kept as `_{class|model|migrtation}.php` to compare changes.
 
 ## Unit Tests
 
