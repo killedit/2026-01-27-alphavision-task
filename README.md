@@ -1,6 +1,6 @@
 # Algorithm for assigning Drivers to Restaurant Orders
 
-Randomly place 100 drivers with random number of orders (1-4) they can take. Place fixed positioned restaurants which random number of orders (5-50). Then calculate based on distance and orders weight the best solution to handle as many orders as possible.
+Randomly place 100 drivers with random number of orders (1-4) they can take. Place fixed positioned restaurants with random number of orders (5-50). Then calculate based on distance and orders weight the best solution to handle as many orders as possible.
 
 ## Setup
 ```
@@ -44,7 +44,8 @@ A dockerized Laravel application that makes migrations and seeds the db at the s
 
 http://localhost:8087/restaurant
 
-![Home](laravel/resources/images/2026-01-27-alphavision-task-simulation.png)
+![Home Simulation 1](laravel/resources/images/2026-01-27-alphavision-task-simulation.png)
+![Home Simulation 2](laravel/resources/images/2026-01-27-alphavision-task-simulation-2.png)
 
 1. The solution is based on service classes.
 
